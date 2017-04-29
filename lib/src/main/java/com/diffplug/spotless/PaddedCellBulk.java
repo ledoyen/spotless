@@ -53,8 +53,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * ### spotlessCheck with paddedCell on
  *
  * Spotless check behaves as normal, finding a list of problem files, but then passes that list
- * to {@link #check(File, File, Formatter, List)}.  If there were no problem files, then `paddedCell`
- * is no longer necessary, so users might as well turn it off, so we give that info as a warning.
+ * to {@link #check(File, File, Formatter, List)}.
  */
 public final class PaddedCellBulk {
 	private static final Logger logger = Logger.getLogger(PaddedCellBulk.class.getName());
@@ -145,10 +144,7 @@ public final class PaddedCellBulk {
 				// dump the type of the misbehavior to console
 				logger.finer("    " + relative + " " + padded.userMessage());
 
-				if (!padded.isResolvable()) {
-					// if it's not resolvable, then there's
-					// no point killing the build over it
-				} else {
+				if (!padded.isOriginalFinal()) {
 					// if the input is resolvable, we'll use that to try again at
 					// determining if it's clean
 					paddedCellStep.set(problemFile, padded.steps().get(0));
@@ -211,18 +207,14 @@ public final class PaddedCellBulk {
 
 		// F(input) != input, so we'll do a padded check
 		PaddedCell cell = PaddedCell.check(formatter, file, rawUnix);
-		if (!cell.isResolvable()) {
-			// nothing we can do, but check will warn and dump out the divergence path
-			return;
-		}
 
 		// get the canonical bytes
-		String canonicalUnix = cell.canonical();
-		String canonical = formatter.computeLineEndings(canonicalUnix, file);
-		byte[] canonicalBytes = canonical.getBytes(formatter.getEncoding());
-		if (!Arrays.equals(rawBytes, canonicalBytes)) {
+		String solutionUnix = cell.finalResult();
+		String solution = formatter.computeLineEndings(solutionUnix, file);
+		byte[] solutionBytes = solution.getBytes(formatter.getEncoding());
+		if (!Arrays.equals(rawBytes, solutionBytes)) {
 			// and write them to disk if needed
-			Files.write(file.toPath(), canonicalBytes, StandardOpenOption.TRUNCATE_EXISTING);
+			Files.write(file.toPath(), solutionBytes, StandardOpenOption.TRUNCATE_EXISTING);
 		}
 	}
 

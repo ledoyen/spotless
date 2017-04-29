@@ -117,17 +117,19 @@ public class PaddedCellTaskTest extends ResourceHarness {
 		Bundle converge = converge().paddedCell();
 		Bundle diverge = diverge().paddedCell();
 
-		cycle.apply.execute();
-		converge.apply.execute();
-		diverge.apply.execute();
+		for (int i = 0; i < 2; i++) {
+			cycle.apply.execute();
+			converge.apply.execute();
+			diverge.apply.execute();
 
-		assertFileContent("A", cycle.file);		// cycle -> first element in cycle
-		assertFileContent("", converge.file);	// converge -> converges
-		assertFileContent("CCC", diverge.file);	// diverge -> no change
-		
-		cycle.check.execute();
-		converge.check.execute();
-		diverge.check.execute();
+			assertFileContent("A", cycle.file);		// cycle -> first element in cycle (since all have the same minimum distance)
+			assertFileContent("", converge.file);	// converge -> converges
+			assertFileContent("CCC", diverge.file);	// diverge -> no change
+
+			cycle.check.execute();
+			converge.check.execute();
+			diverge.check.execute();
+		}
 	}
 
 	@Test

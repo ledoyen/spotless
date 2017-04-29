@@ -143,7 +143,7 @@ public final class Formatter implements Serializable {
 		}
 	}
 
-	/** Returns true iff the given file's formatting is up-to-date. */
+	/** Returns true if the given file's formatting is up-to-date. */
 	public boolean isClean(File file) throws IOException {
 		Objects.requireNonNull(file);
 

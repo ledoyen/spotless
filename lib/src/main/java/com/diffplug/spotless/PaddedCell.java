@@ -38,18 +38,21 @@ public final class PaddedCell {
 		CONVERGE, CYCLE, DIVERGE;
 
 		/** Creates a PaddedCell with the given file and steps. */
-		PaddedCell create(File file, List<String> steps) {
-			return new PaddedCell(file, this, steps);
+		PaddedCell create(File file, List<String> steps, String original) {
+			return new PaddedCell(file, this, steps, original);
 		}
+
 	}
 
 	private final File file;
 	private final Type type;
 	private final List<String> steps;
+	private final String original;
 
-	private PaddedCell(File file, Type type, List<String> steps) {
+	private PaddedCell(File file, Type type, List<String> steps, String original) {
 		this.file = Objects.requireNonNull(file, "file");
 		this.type = Objects.requireNonNull(type, "type");
+		this.original = Objects.requireNonNull(original, "original");
 		// defensive copy
 		this.steps = new ArrayList<>(steps);
 		requireElementsNonNull(this.steps);
@@ -103,39 +106,32 @@ public final class PaddedCell {
 		if (maxLength < 2) {
 			throw new IllegalArgumentException("maxLength must be at least 2");
 		}
-		String appliedOnce = formatter.compute(original, file);
-		if (appliedOnce.equals(original)) {
-			return Type.CONVERGE.create(file, Collections.singletonList(appliedOnce));
-		}
-
-		String appliedTwice = formatter.compute(appliedOnce, file);
-		if (appliedOnce.equals(appliedTwice)) {
-			return Type.CONVERGE.create(file, Collections.singletonList(appliedOnce));
-		}
-
 		List<String> appliedN = new ArrayList<>();
-		appliedN.add(appliedOnce);
-		appliedN.add(appliedTwice);
-		String input = appliedTwice;
+		String input = formatter.compute(original, file);
+		appliedN.add(input);
+		if (input.equals(original)) {
+			return Type.CONVERGE.create(file, appliedN, original);
+		}
+
 		while (appliedN.size() < maxLength) {
 			String output = formatter.compute(input, file);
 			if (output.equals(input)) {
-				return Type.CONVERGE.create(file, appliedN);
+				return Type.CONVERGE.create(file, appliedN, original);
 			} else {
 				int idx = appliedN.indexOf(output);
 				if (idx >= 0) {
-					return Type.CYCLE.create(file, appliedN.subList(idx, appliedN.size()));
+					return Type.CYCLE.create(file, appliedN.subList(idx, appliedN.size()), original);
 				} else {
 					appliedN.add(output);
 					input = output;
 				}
 			}
 		}
-		return Type.DIVERGE.create(file, appliedN);
+		return Type.DIVERGE.create(file, appliedN, original);
 	}
 
 	/**
-	 * Returns true iff the formatter misbehaved in any way
+	 * Returns true if the formatter misbehaved in any way
 	 * (did not converge after a single iteration).
 	 */
 	public boolean misbehaved() {
@@ -143,12 +139,62 @@ public final class PaddedCell {
 		return !isWellBehaved;
 	}
 
-	/** Any result which doesn't diverge can be resolved. */
+	/** Returns true if the original input is final. */
+	public boolean isOriginalFinal() {
+		// @formatter:off
+		switch (type) {
+		case CONVERGE:
+		case CYCLE:
+			return steps.contains(original);
+		case DIVERGE:
+			return true; //If the result is diverging, there is nothing more the user can do
+		default:
+			throw new IllegalArgumentException("Unknown type: " + type);
+		}
+		// @formatter:on
+	}
+
+	/**
+	 * Any result which doesn't diverge can be resolved.
+	 * Use {@link #isOriginalFinal()} to determine whether the
+	 * original file content meets the formatter rules.
+	 */
+	@Deprecated
 	public boolean isResolvable() {
 		return type != Type.DIVERGE;
 	}
 
-	/** Returns the "canonical" form for this particular result (only possible if isResolvable). */
+	/** Returns the solution on best effort basis */
+	public String finalResult() {
+		// @formatter:off
+		switch (type) {
+		case CONVERGE:
+			/* Take the converged solution */
+			return steps.get(steps.size()-1);
+		case CYCLE:
+			if (isOriginalFinal()) {
+				/* in case user input is part of the cycle, let the user decided */
+				return original;
+			}
+			/* In case the formatter converges into a cycle,
+			 * select the minimum edit distance to preserve,
+			 * user modifications */
+			return Comparison.nearest(steps, original);
+		case DIVERGE:
+			return original;
+		default:
+			throw new IllegalArgumentException("Unknown type: " + type);
+		}
+
+	}
+
+	/**
+	 * Returns the "canonical" form for this particular result (only possible if isResolvable).
+	 * The usage of the "canonical" formatted file content is discouraged, since
+	 * it is not transparent for the user. Instead the {@link #finalResult()}
+	 * should be used.
+	 */
+	@Deprecated
 	public String canonical() {
 		// @formatter:off
 		switch (type) {

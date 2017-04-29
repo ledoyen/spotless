@@ -62,29 +62,27 @@ spotless {
 then it will run in the following way:
 
 - When you call `spotlessApply`, it will automatically check for a ping-pong condition.
-- If there is a ping-pong condition, it will resolve the ambiguity arbitrarily, but consistently
+- If there is a ping-pong condition, it will accept the users choice
 - It will also warn that `filename such-and-such cycles between 2 steps`.
 
 ## How is the ambiguity resolved?
 
 This is easiest to show in an example:
 
-* Two-state cycle: `'CCCC' 'A' 'B' 'A' ...`
-	+ `F(F('CCC'))` should equal `F('CCC')`, but it didn't, so we iterate until we find a cycle.
-	+ In this case, that cycle turns out to be `'B' 'A'`
-	+ To resolve the ambiguity about which element in the cycle is "right", Spotless uses the lowest element sorted by first by length then alphabetically.
-	+ In this case, `A` is the canonical form which will be used by `spotlessApply` and `spotlessCheck`.
-
-* Four-state cycle: `'CCCC' 'A' 'B' 'C' 'D' 'A' 'B' 'C' 'D'`
+* Two-state cycle: `'AA' 'Aa' 'Bb' 'Aa' 'Bb' ...`
+	+ `F(F('AA'))` should equal `F('AA')`, but it didn't, so we iterate until we find a cycle.
+	+ In this case, that cycle turns out to be `'Aa' 'Bb'`
+	+ Spotless will select automatically the solution of the cycle, which the minimum edit distance to the input is `'Aa'`.
+	+ The user can either manually adapt the code to use other options in the cycle (`'Bb'`) or apply a custom rule.
+* Four-state cycle: `'CCCC' 'B' 'C' 'D' 'A' 'B' 'C' 'D' 'A'`
 	+ As above, we detect a cycle, and it turns out to be `'B' 'C' 'D' 'A'`
-	+ We resolve this cycle with the lowest element, which is `A`
+	+ We resolve this cycle with the minimum edit distance, which is `'C'`
 
 * Convergence: `'ATT' 'AT' 'A' 'A'`
 	+ `F(F('ATT'))` did not equal `F('ATT')`, but there is no cycle.
 	+ Eventually, the sequence converged on `A`.
-	+ As a result, we will use `A` as the canoncial format.
 
 * Divergence: `'1' '12' '123' '1234' '12345' ...`
-	+ This format does not cycle or converge
-	+ As a result, the canonical format is whatever the starting value was, which is `1` in this case.
 	+ PaddedCell gives up looking for a cycle or convergence and calls a sequence divergent after 10 tries.
+	+ This format does not cycle or converge
+	+ Hence the original input will not be changed

@@ -117,13 +117,14 @@ public class PaddedCellTest {
 	}
 
 	@Test
+	@Deprecated
 	public void cycleOrder() {
 		BiConsumer<String, String> testCase = (unorderedStr, canonical) -> {
 			List<String> unordered = Arrays.asList(unorderedStr.split(","));
 			for (int i = 0; i < unordered.size(); ++i) {
 				// try every rotation of the list
 				Collections.rotate(unordered, 1);
-				PaddedCell result = CYCLE.create(folder.getRoot(), unordered);
+				PaddedCell result = CYCLE.create(folder.getRoot(), unordered, "notUsed");
 				// make sure the canonical result is always the appropriate one
 				Assert.assertEquals(canonical, result.canonical());
 			}
@@ -135,4 +136,36 @@ public class PaddedCellTest {
 		// length > alphabetic
 		testCase.accept("b,aa,aaa", "b");
 	}
+
+	@Test
+	public void originalIsFinal() {
+		BiConsumer<PaddedCell.Type, String> testCase = (type, input) -> {
+			List<String> unordered = Arrays.asList(input.split(","));
+			for (int i = 0; i < unordered.size(); ++i) {
+				// try every rotation of the list
+				Collections.rotate(unordered, 1);
+				PaddedCell result = type.create(folder.getRoot(), unordered, "expected");
+				String descr = String.format("%s for %s", type, unordered);
+				Assert.assertTrue(descr, result.isOriginalFinal());
+				Assert.assertEquals(descr, "expected", result.finalResult());
+			}
+		};
+		testCase.accept(CONVERGE, "expected");
+		testCase.accept(DIVERGE, "a,b,c");
+		testCase.accept(CYCLE, "a,expected,c");
+	}
+
+	@Test
+	public void convergeToFinal() {
+		BiConsumer<PaddedCell.Type, String> testCase = (type, input) -> {
+			List<String> ordered = Arrays.asList(input.split(","));
+			PaddedCell result = type.create(folder.getRoot(), ordered, "notExpected");
+			String descr = String.format("%s for %s", type, ordered);
+			Assert.assertFalse(descr, result.isOriginalFinal());
+			Assert.assertEquals(descr, "expected", result.finalResult());
+		};
+		testCase.accept(CONVERGE, "a,b,expected");
+		testCase.accept(CYCLE, "expected,a,b"); //Select minimum edit distance
+	}
+
 }
